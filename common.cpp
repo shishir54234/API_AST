@@ -12,8 +12,9 @@ namespace common
         }
     }
 
+
     // Input class implementations
-    Input::Input(std::string id, VarTypes dtype) : id(std::move(id)), dtype(dtype) {}
+    Input::Input(bool chk, std::string id, VarTypes dtype) : globalVar(chk), id(std::move(id)), dtype(dtype) {}
 
     void Input::print() const
     {
@@ -29,10 +30,7 @@ namespace common
                id;
     }
 
-    void Input::modify(std::string s)
-    {
-        id += s;
-    }
+    
 
     // Inputs class implementations
     void Inputs::addInput(Input input)
@@ -65,10 +63,7 @@ namespace common
     // ValueExpression implementations
     ValueExpression::ValueExpression(SpecialValues s1) : s(s1) {}
 
-    void ValueExpression::modify(std::string)
-    {
-        // No-op for ValueExpression
-    }
+    
 
     void ValueExpression::print(int indent) const
     {
@@ -82,28 +77,25 @@ namespace common
     }
 
     // VarExpression implementations
-    VarExpression::VarExpression(int chk, Inputs i1) : globalVar(chk), i(std::move(i1)) {}
+    VarExpression::VarExpression(Inputs i1) : i(std::move(i1)) {}
 
-    void VarExpression::modify(std::string s)
-    {
-        for (auto &input : i.inputs)
-        {
-            if (globalVar == 0)
-            {
-                input.modify(s);
-            }
-        }
-    }
+    // void VarExpression::modify(std::string s)
+    // {
+    //     for (auto &input : i.inputs)
+    //     {
+    //         if (globalVar == 0)
+    //         {
+    //             input.modify(s);
+    //         }
+    //     }
+    // }
 
     Inputs VarExpression::getInput()
     {
         return i;
     }
 
-    int VarExpression::getGlobalVar()
-    {
-        return globalVar;
-    }
+    
 
     void VarExpression::print(int indent) const
     {
@@ -113,20 +105,14 @@ namespace common
 
     std::string VarExpression::toString(int indent) const
     {
-        return std::string(indent, ' ') + "VarExpression(globalVar: " + std::to_string(globalVar) + ", Inputs: [" + i.toString() + "])";
+        return std::string(indent, ' ') + ", Inputs: [" + i.toString() + "])";
     }
 
     // SetOperationExpression implementations
     SetOperationExpression::SetOperationExpression(std::unique_ptr<Expression> left, Operator op, std::unique_ptr<Expression> right)
         : left(std::move(left)), op(op), right(std::move(right)) {}
 
-    void SetOperationExpression::modify(std::string s)
-    {
-        if (left)
-            left->modify(s);
-        if (right)
-            right->modify(s);
-    }
+    
 
     void SetOperationExpression::print(int indent) const
     {
@@ -191,7 +177,7 @@ namespace common
     }
     std::unique_ptr<Expression> VarExpression::clone() const
     {
-        return std::make_unique<VarExpression>(globalVar, i);
+        return std::make_unique<VarExpression>(i);
     }
     std::unique_ptr<Expression> SetOperationExpression::clone() const
     {

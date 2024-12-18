@@ -13,9 +13,9 @@ namespace apispec
     class Conditions
     {
     public:
-        std::vector<std::pair<std::unique_ptr<common::Expression>, common::BoolConditionType *>> conditions;
+        std::unique_ptr<common::Expression> Expr;
         void addCondition(std::unique_ptr<common::Expression> condition,
-                          common::BoolConditionType *boolOp = nullptr);
+                          common::Operator op);
         void print(int indent = 0) const;
         std::string toString(int indent = 0) const;
 
@@ -55,7 +55,7 @@ namespace apispec
         void print(int indent = 0) const;
         std::string toString(int indent = 0) const;
     };
-
+    // U={} , Program={}
     class Initialization
     {
     public:

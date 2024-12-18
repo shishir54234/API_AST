@@ -19,29 +19,31 @@ namespace atc
         API(std::vector<common::Input> inputs, common::HTTPResponseCode code, std::vector<common::Input> outputs);
         void print(int indent = 0);
     };
-
+// A u B u C , A u (B) , A and B or C
+// A and (B or C) 
+// A and (B == C)
     class Conditions
     {
     public:
         int fl;
-        std::vector<std::pair<std::unique_ptr<common::Expression>, common::BoolConditionType *>> conditions;
+        std::unique_ptr<common::Expression> Expr;
         void addCondition(std::unique_ptr<common::Expression> condition,
-                          common::BoolConditionType *boolOp = nullptr);
+                          common::Operator op);
 
         explicit Conditions(int fl1);
         void print(int indent = 0) const;
         std::string toString(int indent = 0) const;
 
     private:
-        static std::string boolConditionTypeToString(common::BoolConditionType type);
+        static std::string boolConditionTypeToString(common::Operator type);
     };
 
     class ATC
     {
     public:
-        std::vector<common::Input> ins;
+        std::vector<common::Input> ins; // uid, 
         Conditions preConditions;
-        std::unique_ptr<API> api;
+        std::unique_ptr<API> api; // signup(input1, 2) => (rcode, outputs1, .. )
         Conditions postConditions;
 
         ATC(std::vector<common::Input> ins1, Conditions pre,
@@ -52,4 +54,4 @@ namespace atc
 
 } // namespace atc
 
-#endif // ATC_H
+#endif  ATC_H

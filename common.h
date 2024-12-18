@@ -67,13 +67,13 @@ namespace common
     class Input
     {
     public:
+        bool globalVar;
         std::string id;
         VarTypes dtype;
 
-        explicit Input(std::string id, VarTypes dtype);
+        explicit Input(bool chk, std::string id, VarTypes dtype);
         void print() const;
         std::string toString() const;
-        void modify(std::string s);
     };
 
     // Inputs class
@@ -93,34 +93,36 @@ namespace common
         virtual ~Expression() = default;
         virtual void print(int indent = 0) const = 0;
         virtual std::string toString(int indent = 0) const = 0;
-        virtual void modify(std::string s) = 0;
         virtual std::unique_ptr<Expression> clone() const = 0;
     };
 
-    // ValueExpression class
+    // ValueExpression class 
+    // U = {}
     class ValueExpression : public Expression
     {
-        SpecialValues s;
+        
 
     public:
+        common::SpecialValues s;
         explicit ValueExpression(SpecialValues s1);
-        void modify(std::string s) override;
         void print(int indent = 0) const override;
         std::unique_ptr<Expression> clone() const override;
         std::string toString(int indent = 0) const override;
     };
 
     // VarExpression class
+    // Input 
+    // (uid, p) not in U 
+
+    // (uid1, p1) not in U
     class VarExpression : public Expression
     {
     public:
-        int globalVar;
+        
         Inputs i;
 
-        VarExpression(int chk, Inputs i1);
-        void modify(std::string s) override;
+        VarExpression(Inputs i1);
         Inputs getInput();
-        int getGlobalVar();
         void print(int indent = 0) const override;
         std::unique_ptr<Expression> clone() const override;
         std::string toString(int indent = 0) const override;
@@ -129,13 +131,13 @@ namespace common
     // SetOperationExpression class
     class SetOperationExpression : public Expression
     {
+        
+
+    public:
         std::unique_ptr<Expression> left;
         Operator op;
         std::unique_ptr<Expression> right;
-
-    public:
         SetOperationExpression(std::unique_ptr<Expression> left, Operator op, std::unique_ptr<Expression> right);
-        void modify(std::string s) override;
         void print(int indent = 0) const override;
         std::string toString(int indent = 0) const override;
         std::unique_ptr<Expression> clone() const override;

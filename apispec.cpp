@@ -6,40 +6,19 @@ namespace apispec
 
     // Conditions Implementation
     void Conditions::addCondition(std::unique_ptr<common::Expression> condition,
-                                  common::BoolConditionType *boolOp)
+                                  common::Operator Op)
     {
-        conditions.emplace_back(std::move(condition), boolOp);
+        Expr=std::make_unique<common::SetOperationExpression>(move(condition),Op,move(Expr));
     }
 
     void Conditions::print(int indent) const
     {
-        for (const auto &condition : conditions)
-        {
-            const auto &cond = condition.first;
-            const auto &boolOp = condition.second;
-            cond->print(indent);
-            if (boolOp)
-            {
-                std::cout << " " << boolConditionTypeToString(*boolOp);
-            }
-            std::cout << std::endl;
-        }
+        Expr->print(indent);
     }
 
     std::string Conditions::toString(int indent) const
     {
-        std::string result;
-        for (const auto &condition : conditions)
-        {
-            const auto &cond = condition.first;
-            const auto &boolOp = condition.second;
-            result += cond->toString(indent);
-            if (boolOp)
-            {
-                result += " " + boolConditionTypeToString(*boolOp);
-            }
-            result += "\n";
-        }
+        std::string result=Expr->toString(indent);
         return result;
     }
 

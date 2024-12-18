@@ -47,24 +47,19 @@ namespace atc
     Conditions::Conditions(int fl1) : fl(fl1) {}
 
     void Conditions::addCondition(std::unique_ptr<common::Expression> condition,
-                                  common::BoolConditionType *boolOp)
+                                  common::Operator op)
     {
-        conditions.emplace_back(std::move(condition), boolOp);
+        Expr = std::make_unique<common::SetOperationExpression>(move(condition), op, move(Expr));
     }
 
     void Conditions::print(int indent) const
     {
-        for (const auto &condition : conditions)
-        {
-            const auto &cond = condition.first;
-            const auto &boolOp = condition.second;
-            cond->print(indent);
-            if (boolOp)
-            {
-                std::cout << " " << boolConditionTypeToString(*boolOp);
-            }
-            std::cout << std::endl;
-        }
+        if (fl)
+            std::cout << "ASSERT(";
+        else
+            std::cout << "ASSUME(";
+        Expr->print(indent);
+        std::cout<<")"<<std::endl;
     }
 
     std::string Conditions::toString(int indent) const
@@ -75,30 +70,20 @@ namespace atc
         else
             result += "ASSUME(";
 
-        for (const auto &condition : conditions)
-        {
-            const auto &cond = condition.first;
-            const auto &boolOp = condition.second;
-            result += cond->toString(indent);
-            if (boolOp)
-            {
-                result += " " + boolConditionTypeToString(*boolOp);
-            }
-            result += "\n";
-        }
+        result = Expr->toString(indent);
         result += ")";
         return result;
     }
 
-    std::string Conditions::boolConditionTypeToString(common::BoolConditionType type)
+    std::string Conditions::boolConditionTypeToString(common::Operator type)
     {
         switch (type)
         {
-        case common::BoolConditionType::AND:
+        case common::Operator::AND:
             return "AND";
-        case common::BoolConditionType::OR:
+        case common::Operator::OR:
             return "OR";
-        case common::BoolConditionType::NEGATION:
+        case common::Operator::NEGATION:
             return "NOT";
         }
         return "";
@@ -111,7 +96,6 @@ namespace atc
 
     void ATC::print(int indent)
     {
-        std::cout<<"hey\n";
         common::printIndent(indent);
         for (auto &j : ins)
             j.print();
