@@ -8,25 +8,146 @@ using namespace std;
 // 1. convert api spec to atc
 // i wrote an algorithm 
 // (uid, p) not in U
-unique_ptr<common::Expression> modify(unique_ptr<common::Expression> &expr, string add)
+
+class SymbolTable
 {
+public:
+    // Key for symbol table lookup: (index, variable_id)
+    using VariableKey = std::pair<size_t, std::string>;
+
+    struct KeyHash
+    {
+        std::size_t operator()(const VariableKey &k) const
+        {
+            return std::hash<size_t>()(k.first) ^
+                   std::hash<std::string>()(k.second);
+        }
+    };
+
+    struct Symbol
+    {
+        enum Type
+        {
+            INPUT,
+            OUTPUT,
+            GLOBAL,
+            TEMPORARY
+        };
+
+        Type type;
+        std::string originalId;
+        std::string scopedId;
+        bool isGlobal;
+
+        Symbol(Type t, std::string orig, std::string scoped, bool global = false)
+            : type(t), originalId(std::move(orig)),
+              scopedId(std::move(scoped)), isGlobal(global) {}
+    };
+
+private:
+    std::unordered_map<VariableKey, Symbol, KeyHash> symbols;
+    size_t currentIndex;
+    SymbolTable *parentTable;
+
+public:
+    explicit SymbolTable(size_t index = 0, SymbolTable *parent = nullptr)
+        : currentIndex(index), parentTable(parent) {}
+
+    void registerVariable(const std::string &varId, Symbol::Type type, bool isGlobal)
+    {
+        if (isGlobal && parentTable)
+        {
+            parentTable->registerVariable(varId, type, true);
+            return;
+        }
+
+        VariableKey key{currentIndex, varId};
+        std::string scopedId;
+
+        if (isGlobal)
+        {
+            scopedId = varId; // Global variables keep their original ID
+        }
+        else
+        {
+            scopedId = varId + "_" + std::to_string(currentIndex);
+        }
+
+        symbols.emplace(key, Symbol(type, varId, scopedId, isGlobal));
+    }
+
+    std::string getScopedId(const std::string &originalId) const
+    {
+        // First check current scope
+        VariableKey key{currentIndex, originalId};
+        auto it = symbols.find(key);
+        if (it != symbols.end())
+        {
+            return it->second.scopedId;
+        }
+
+        // If not found and parent exists, check parent scope
+        if (parentTable)
+        {
+            return parentTable->getScopedId(originalId);
+        }
+
+        throw std::runtime_error("Variable not found: " + originalId);
+    }
+
+    bool exists(const std::string &originalId) const
+    {
+        VariableKey key{currentIndex, originalId};
+        return symbols.find(key) != symbols.end() ||
+               (parentTable && parentTable->exists(originalId));
+    }
+
+    const Symbol *getSymbol(const std::string &originalId) const
+    {
+        VariableKey key{currentIndex, originalId};
+        auto it = symbols.find(key);
+        if (it != symbols.end())
+        {
+            return &it->second;
+        }
+        return parentTable ? parentTable->getSymbol(originalId) : nullptr;
+    }
+};
+
+// Modified modify function to use symbol table for variable scoping
+unique_ptr<common::Expression> modify(unique_ptr<common::Expression> &expr, const SymbolTable &symbolTable)
+{
+    if (!expr)
+    {
+        // throw std::runtime_error("Null expression encountered");
+        return nullptr;
+    }
+
     if (auto *setOpExpr = dynamic_cast<common::SetOperationExpression *>(expr.get()))
     {
-        // Correctly modify both left and right expressions
+        
         return std::make_unique<common::SetOperationExpression>(
-            modify(setOpExpr->getLeft(), add),
+            modify(setOpExpr->getLeft(), symbolTable),
             setOpExpr->getOp(),
-            modify(setOpExpr->getRight(), add));
+            modify(setOpExpr->getRight(), symbolTable));
     }
     else if (auto *VarExpr = dynamic_cast<common::VarExpression *>(expr.get()))
     {
         common::Inputs i = VarExpr->getInput();
-        for (common::Input &i1 : i.inputs)
+        common::Inputs newInputs;
+
+        for (const common::Input &i1 : i.inputs)
         {
-            if (i1.globalVar == 0)
-                i1.id += add;
+            cout << i1.toString() << "\n";
+            common::Input newInput = i1;
+            if (symbolTable.exists(i1.id))
+            {
+                // Use symbol table to get the scofped ID
+                newInput.id = symbolTable.getScopedId(i1.id);
+            }
+            newInputs.inputs.push_back(newInput);
         }
-        return make_unique<common::VarExpression>(i);
+        return make_unique<common::VarExpression>(newInputs);
     }
     else if (auto *ValExpr = dynamic_cast<common::ValueExpression *>(expr.get()))
     {
@@ -34,58 +155,87 @@ unique_ptr<common::Expression> modify(unique_ptr<common::Expression> &expr, stri
         return make_unique<common::ValueExpression>(s1);
     }
 
-    // !!!! throw an exception here
-    return nullptr;
+    // Print type information before throwing the error
+    cout << "Unknown expression type encountered: "
+         << typeid(*expr).name() << "\n";
+
+    throw std::runtime_error("Unknown expression type: " +
+                             std::string(typeid(*expr).name()));
 }
+
+// Modified convert function to use symbol table for variable scoping
 vector<atc::ATC> convert(vector<apispec::API_Spec> &specs)
 {
     vector<atc::ATC> atcs;
     atcs.reserve(specs.size());
-    
+
     for (size_t i = 0; i < specs.size(); i++)
     {
-        string id1 = specs[i].id;
+        // Create symbol table for this API spec with current index
+        SymbolTable symbolTable(i + 1);
 
-        // Create copies of inputs and outputs
+        // Register inputs in symbol table
+        for (const auto &input : specs[i].api->inputs)
+        {
+            symbolTable.registerVariable(
+                input.id,
+                SymbolTable::Symbol::Type::INPUT,
+                input.globalVar != 0);
+        }
+
+        // Register outputs in symbol table
+        for (const auto &output : specs[i].api->outputs)
+        {
+            symbolTable.registerVariable(
+                output.id,
+                SymbolTable::Symbol::Type::OUTPUT,
+                output.globalVar != 0);
+        }
+
+        // Process inputs using symbol table
         vector<common::Input> ins1;
         ins1.reserve(specs[i].api->inputs.size());
 
         for (const auto &input : specs[i].api->inputs)
         {
-            auto modified_input = input;
-            if(modified_input.globalVar==0)modified_input.id += to_string(i + 1);
+            common::Input modified_input = input;
+            if (!modified_input.globalVar)
+            {
+                modified_input.id = symbolTable.getScopedId(input.id);
+            }
             ins1.push_back(std::move(modified_input));
         }
 
+        // Process outputs using symbol table
         vector<common::Input> outs1;
         outs1.reserve(specs[i].api->outputs.size());
 
         for (const auto &output : specs[i].api->outputs)
         {
-            auto modified_output = output;
-            if (modified_output.globalVar == 0)
-                modified_output.id += to_string(i + 1);
+            common::Input modified_output = output;
+            if (!modified_output.globalVar)
+            {
+                modified_output.id = symbolTable.getScopedId(output.id);
+            }
             outs1.push_back(std::move(modified_output));
         }
 
-        // Create the API object
+        // Create API object
         auto api1 = std::make_unique<atc::API>(
             std::move(ins1),
             specs[i].api->responseCode,
             std::move(outs1));
 
-        // Handle preconditions
+        // Handle conditions using symbol table
         atc::Conditions pre1(0);
-        auto expr_copy = modify(specs[i].preConditions.Expr, to_string(i + 1));
-        pre1.Expr = std::move(expr_copy);
-        // Handle postconditions
+        pre1.Expr = modify(specs[i].preConditions.Expr, symbolTable);
+        pre1.print(0);
         atc::Conditions post1(1);
-        auto expr_copy1=modify(specs[i].postConditions.Expr, to_string(i + 1));
-        post1.Expr=std::move(expr_copy1);
+        post1.Expr = modify(specs[i].postConditions.Expr, symbolTable);
 
-        // Create and add the ATC object
+        // Create and add ATC object
         atcs.emplace_back(
-            vector<common::Input>(ins1), // Create a fresh copy for ATC constructor
+            vector<common::Input>(ins1),
             std::move(pre1),
             std::move(api1),
             std::move(post1));
