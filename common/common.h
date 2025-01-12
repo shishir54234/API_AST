@@ -67,11 +67,10 @@ namespace common
     class Input
     {
     public:
-        bool globalVar;
         std::string id;
         VarTypes dtype;
-
-        explicit Input(bool chk, std::string id, VarTypes dtype);
+        
+        explicit Input(std::string id, VarTypes dtype);
         void print() const;
         std::string toString() const;
     };
@@ -96,11 +95,10 @@ namespace common
         virtual std::unique_ptr<Expression> clone() const = 0;
     };
 
-    // ValueExpression class 
+    // ValueExpression class
     // U = {}
     class ValueExpression : public Expression
     {
-        
 
     public:
         common::SpecialValues s;
@@ -111,33 +109,40 @@ namespace common
     };
 
     // VarExpression class
-    // Input 
-    // (uid, p) not in U 
-
+    // Input
+    // [(uid, p)] or [(uid, p, w, z)] not in U
+    
     // (uid1, p1) not in U
-    class VarExpression : public Expression
+    class TupleExpression : public Expression
     {
     public:
-        
-        Inputs i;
+        std::vector<std::unique_ptr<common::Expression>> i;
 
-        VarExpression(Inputs i1);
+        TupleExpression(std::vector<std::unique_ptr<common::Expression>> i1);
         Inputs getInput();
+        void print(int indent = 0) const override;
+        std::unique_ptr<Expression> clone() const override;
+        std::string toString(int indent = 0) const override;
+    };
+    class VarExpression : public Expression
+    {
+        public:
+        Input i;
+        VarExpression(common::Input i1);
         void print(int indent = 0) const override;
         std::unique_ptr<Expression> clone() const override;
         std::string toString(int indent = 0) const override;
     };
 
     // SetOperationExpression class
-    class SetOperationExpression : public Expression
+    class BinaryExpression : public Expression
     {
-        
 
     public:
         std::unique_ptr<Expression> left;
         Operator op;
         std::unique_ptr<Expression> right;
-        SetOperationExpression(std::unique_ptr<Expression> left, Operator op, std::unique_ptr<Expression> right);
+        BinaryExpression(std::unique_ptr<Expression> left, Operator op, std::unique_ptr<Expression> right);
         void print(int indent = 0) const override;
         std::string toString(int indent = 0) const override;
         std::unique_ptr<Expression> clone() const override;
@@ -149,6 +154,6 @@ namespace common
         static std::string operatorToString(Operator op);
     };
 
-} // namespace common
+}; // namespace common
 
 #endif // COMMON_H

@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 #include <optional>
-#include "common.h"
+#include "../common/common.h"
 
 namespace apispec
 {

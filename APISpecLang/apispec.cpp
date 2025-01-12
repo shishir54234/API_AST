@@ -8,7 +8,7 @@ namespace apispec
     void Conditions::addCondition(std::unique_ptr<common::Expression> condition,
                                   common::Operator Op)
     {
-        Expr=std::make_unique<common::SetOperationExpression>(move(condition),Op,move(Expr));
+        Expr = std::make_unique<common::SetOperationExpression>(move(condition), Op, move(Expr));
     }
 
     void Conditions::print(int indent) const
@@ -18,7 +18,7 @@ namespace apispec
 
     std::string Conditions::toString(int indent) const
     {
-        std::string result=Expr->toString(indent);
+        std::string result = Expr->toString(indent);
         return result;
     }
 

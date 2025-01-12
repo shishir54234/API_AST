@@ -59,7 +59,7 @@ namespace atc
         else
             std::cout << "ASSUME(";
         Expr->print(indent);
-        std::cout<<")"<<std::endl;
+        std::cout << ")" << std::endl;
     }
 
     std::string Conditions::toString(int indent) const

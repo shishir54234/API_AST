@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 #include <optional>
-#include "common.h"
+#include "../common/common.h"
 
 namespace atc
 {
@@ -19,9 +19,9 @@ namespace atc
         API(std::vector<common::Input> inputs, common::HTTPResponseCode code, std::vector<common::Input> outputs);
         void print(int indent = 0);
     };
-// A u B u C , A u (B) , A and B or C
-// A and (B or C) 
-// A and (B == C)
+    // A u B u C , A u (B) , A and B or C
+    // A and (B or C)
+    // A and (B == C)
     class Conditions
     {
     public:
@@ -41,7 +41,7 @@ namespace atc
     class ATC
     {
     public:
-        std::vector<common::Input> ins; // uid, 
+        std::vector<common::Input> ins; // uid,
         Conditions preConditions;
         std::unique_ptr<API> api; // signup(input1, 2) => (rcode, outputs1, .. )
         Conditions postConditions;
@@ -54,4 +54,4 @@ namespace atc
 
 } // namespace atc
 
-#endif  ATC_H
+#endif ATC_H

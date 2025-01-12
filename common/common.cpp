@@ -12,9 +12,8 @@ namespace common
         }
     }
 
-
     // Input class implementations
-    Input::Input(bool chk, std::string id, VarTypes dtype) : globalVar(chk), id(std::move(id)), dtype(dtype) {}
+    Input::Input(std::string id, VarTypes dtype) :  id(std::move(id)), dtype(dtype) {}
 
     void Input::print() const
     {
@@ -29,8 +28,6 @@ namespace common
                                                                                    : "Set ") +
                id;
     }
-
-    
 
     // Inputs class implementations
     void Inputs::addInput(Input input)
@@ -63,8 +60,6 @@ namespace common
     // ValueExpression implementations
     ValueExpression::ValueExpression(SpecialValues s1) : s(s1) {}
 
-    
-
     void ValueExpression::print(int indent) const
     {
         printIndent(indent);
@@ -77,7 +72,7 @@ namespace common
     }
 
     // VarExpression implementations
-    VarExpression::VarExpression(Inputs i1) : i(std::move(i1)) {}
+    VarExpression::VarExpression(common::Input i1) : i(std::move(i1)) {}
 
     // void VarExpression::modify(std::string s)
     // {
@@ -90,13 +85,6 @@ namespace common
     //     }
     // }
 
-    Inputs VarExpression::getInput()
-    {
-        return i;
-    }
-
-    
-
     void VarExpression::print(int indent) const
     {
         printIndent(indent);
@@ -108,13 +96,11 @@ namespace common
         return std::string(indent, ' ') + ", Inputs: [" + i.toString() + "])";
     }
 
-    // SetOperationExpression implementations
-    SetOperationExpression::SetOperationExpression(std::unique_ptr<Expression> left, Operator op, std::unique_ptr<Expression> right)
+    // BinaryExpression implementations
+    BinaryExpression::BinaryExpression(std::unique_ptr<Expression> left, Operator op, std::unique_ptr<Expression> right)
         : left(std::move(left)), op(op), right(std::move(right)) {}
 
-    
-
-    void SetOperationExpression::print(int indent) const
+    void BinaryExpression::print(int indent) const
     {
         printIndent(indent);
         std::cout << "(";
@@ -126,28 +112,50 @@ namespace common
         std::cout << ")";
     }
 
-    std::string SetOperationExpression::toString(int indent) const
+    std::string BinaryExpression::toString(int indent) const
     {
         return std::string(indent, ' ') + "(" + (left ? left->toString() : "NULL") + " " +
                operatorToString(op) + " " + (right ? right->toString() : "NULL") + ")";
     }
 
-    std::unique_ptr<Expression> &SetOperationExpression::getLeft()
+    std::unique_ptr<Expression> &BinaryExpression::getLeft()
     {
         return left;
     }
 
-    std::unique_ptr<Expression> &SetOperationExpression::getRight()
+    std::unique_ptr<Expression> &BinaryExpression::getRight()
     {
         return right;
     }
 
-    Operator SetOperationExpression::getOp() const
+    Operator BinaryExpression::getOp() const
     {
         return op;
     }
+    TupleExpression::TupleExpression(std::vector<std::unique_ptr<common::Expression>> i1) : i(std::move(i1)) {}
 
-    std::string SetOperationExpression::operatorToString(Operator op)
+    void TupleExpression::print(int indent) const
+    {
+        printIndent(indent);
+        std::cout << "(";
+        for (const auto &expr : i)
+        {
+            expr->print();
+        }
+        std::cout << ")";
+    }
+
+    std::string TupleExpression::toString(int indent) const
+    {
+        std::string result = std::string(indent, ' ') + "(";
+        for (const auto &expr : i)
+        {
+            result += expr->toString();
+        }
+        return result + ")";
+    }
+
+    std::string BinaryExpression::operatorToString(Operator op)
     {
         switch (op)
         {
@@ -179,9 +187,9 @@ namespace common
     {
         return std::make_unique<VarExpression>(i);
     }
-    std::unique_ptr<Expression> SetOperationExpression::clone() const
+    std::unique_ptr<Expression> BinaryExpression::clone() const
     {
-        return std::make_unique<SetOperationExpression>(
+        return std::make_unique<BinaryExpression>(
             left ? left->clone() : nullptr,
             op,
             right ? right->clone() : nullptr);
